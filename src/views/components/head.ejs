@@ -6,10 +6,4 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title><%= title %></title>
 </head>
-<body class="min-h-screen bg-gray-100">
-<% if (locals.error) { %>
-    <div class="error-message">
-        <p><%= error %></p>
-    </div>
-<% } %>
-<main>
+<body class="min-h-screen flex flex-col bg-gray-100">

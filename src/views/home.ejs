@@ -1,8 +1,151 @@
 <%- include('components/head', { title: 'Home' }) %>
+<%- include('components/header') %>
 
-    <h1>Home</h1>
-    <% images.forEach(img => { %>
-        <img src="/uploads/<%= img %>" style="max-width: 300px; max-height: 300px;" />
-    <% }) %>
+<main class="mt-5 max-w-2xl mx-auto px-4">
+    <div class="flex justify-center gap-4 mb-8">
+        <button data-sort="date" class="sort-btn active-sort">
+            Newest
+        </button>
+        <button data-sort="likes" class="sort-btn">
+            Most Liked
+        </button>
+    </div>
 
-<%- include('components/footer', { title: 'Home' }) %>
+    <% if (locals.posts && posts.length > 0) { %>
+        <div id="post-grid" class="flex flex-col gap-8">
+            <% posts.forEach(post => { %>
+                <%- include('components/post_card', { post }) %>
+            <% }) %>
+        </div> 
+        <div id="loading-trigger" class="h-20 w-full text-center py-8">
+            Loading...
+        </div>
+    <% } else { %>
+        <p>No posts yet. Be the first to <a href="/publish">publish</a> one!</p>
+    <% } %>
+
+</main>
+
+<script>
+    const postGrid = document.getElementById('post-grid');
+    const loadingTrigger = document.getElementById('loading-trigger');
+    let currentPage = 1;
+    let isLoading = false;
+    let sortBy = 'date'
+
+    function createPostElement(post) {
+        const isLikedClass = post.isLiked ? 'liked' : '';
+        const postCard = document.createElement('div');
+        postCard.className = 'border rounded-lg shadow-sm overflow-hidden relative';
+        
+        postCard.innerHTML = `
+            <div class="p-4 rendered">
+                <p class="font-bold">${post.authorName}</p>
+                <p class="text-sm">${post.description}</p>
+                <p class="text-sm">${(new Date(post.createdAt)).toLocaleString()}</p>
+            </div>
+            <div class="relative">
+                <img src="${post.imagePath}" alt="Some Image" class="w-full max-h-[80vh] object-cover">
+                <button class="absolute h-10 w-10 flex flex-col items-center bg-gray-500 rounded-full top-5 right-5 like-btn ${isLikedClass}" data-post-id="${post.id}">
+                    <svg class="w-6 h-6 fill-none stroke-white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path>
+                    </svg>
+                    <span class="like-count text-sm ml-1">${post.likeCount}</span>
+                </button>
+            </div>
+        `;
+        return postCard;
+    }
+
+    async function loadMorePosts() {
+        if (isLoading) return;
+        isLoading = true;
+        
+        try {
+            const res = await fetch(`/api/posts?page=${currentPage}&sortBy=${sortBy}`);
+            const newPosts = await res.json();
+
+            if (newPosts.length === 0) {
+                loadingTrigger.innerText = 'No more posts';
+                observer.disconnect();
+                return;
+            }
+
+            newPosts.forEach(post => postGrid.appendChild(
+                createPostElement(post)
+            ));
+
+            currentPage++
+        } catch (err) {
+            console.error('Error loading more posts', err);
+            observer.disconnect();
+            loadingTrigger.innerText = 'Error loading posts';
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) loadMorePosts();
+    }, { rootMargin: '200px' }); 
+
+    observer.observe(loadingTrigger);
+
+    postGrid.addEventListener('click', async (e) => {
+        const likeButton = e.target.closest('.like-btn');
+        if (!likeButton) return;
+
+        const postId = likeButton.dataset.postId;
+        const likeCountSpan = likeButton.querySelector('.like-count');
+        let currentCount = parseInt(likeCountSpan.innerText);
+
+        likeButton.classList.toggle('liked');
+        likeCountSpan.innerText = likeButton.classList.contains('liked') 
+            ? currentCount + 1
+            : currentCount - 1;
+
+        try {
+            const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
+            if (!res.ok) throw new Error('Server error');
+        } catch (err) {
+            console.error('Failed to toggle like', err);
+            likeButton.classList.toggle('liked'); 
+            likeCountSpan.innerText = currentCount;
+        }
+    });
+
+    function handleSortChange(newSortBy) {
+        if (newSortBy === sortBy) return;
+
+        sortBy = newSortBy;
+        currentPage = 1;
+        postGrid.innerHTML = '';
+        
+        loadingTrigger.innerText = 'Loading...';
+        observer.observe(loadingTrigger);
+        
+        document.querySelectorAll('.sort-btn').forEach(btn => {
+            btn.classList.toggle('active-sort', btn.dataset.sort === newSortBy);
+        });
+
+        loadMorePosts();
+    }
+
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => handleSortChange(btn.dataset.sort));
+    });
+</script>
+<style>
+  .like-btn.liked svg {
+    fill: #ef4444;  
+    stroke: #233444; 
+  }
+  .sort-btn {
+    @apply px-4 py-2 rounded-full font-semibold text-gray-700 bg-gray-200;
+  }
+  .sort-btn.active-sort {
+    @apply bg-blue-500 text-white;
+  }
+</style>
+
+<%- include('components/footer') %>

@@ -1,0 +1,16 @@
+<div class="border rounded-lg shadow-sm overflow-hidden">
+    <div class="p-4">
+        <p class="font-bold"><%= post.authorName %></p>
+        <p class="text-sm"><%= post.description %></p>
+        <p class="text-sm"><%= post.createdAt.toLocaleString() %></p>
+    </div>
+    <div class="relative">
+        <img src="<%= post.imagePath %>" alt="Some image" class="w-full max-h-[80vh] object-cover">
+        <button class="absolute h-10 w-10 flex flex-col items-center bg-gray-500 rounded-full top-5 right-5 like-btn <%= post.isLiked ? 'liked' : '' %>" data-post-id="<%= post.id %>">
+            <svg class="w-6 h-6 fill-none stroke-white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z"></path>
+            </svg>
+            <span class="like-count text-sm ml-1"><%= post.likeCount %></span>
+        </button>
+    </div>
+</div>
