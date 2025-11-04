@@ -1,19 +1,15 @@
-import { Like } from "./Like";
-
 export class Post {
   private id: number | undefined;
   private authorId: number;
   private description: string ;
   private imagePath: string;
-  private likes: Like[];
   private createdAt: Date;
 
-  constructor(props: { id?: number, authorId: number, description: string, imagePath: string, likes?: Like[], createdAt?: Date }) {
+  constructor(props: { id?: number, authorId: number, description: string, imagePath: string, createdAt?: Date }) {
     this.id = props.id ?? undefined;
     this.description = props.description;
     this.authorId = props.authorId;
     this.imagePath = props.imagePath;
-    this.likes = props.likes ?? [];
     this.createdAt = props.createdAt ?? new Date();
   }
 

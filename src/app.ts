@@ -1,19 +1,25 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 
-import PrismaUserRepository from './infra/prisma/repositories/PrismaUserRepository';
 import BcryptHashProvider from './infra/providers/bcryptHashProvider';
 import JsonWebTokenProvider from './infra/providers/jsonwebtokenJwtProvider';
+import PrismaUserRepository from './infra/prisma/repositories/PrismaUserRepository';
 import PrismaPostRepository from './infra/prisma/repositories/PrismaPostRepository';
-import AuthService from './application/services/AuthService';
-import PostService from './application/services/PostService';
-import createAuthMiddleware from './infra/http/middleware/authRequired';
+import PrismaLikeRepository from './infra/prisma/repositories/PrismaLikeRepository';
+import PrismaPostQuery from './infra/prisma/repositories/PrismaPostQuery';
 import PostController from './infra/http/controllers/PostController';
 import AuthController from './infra/http/controllers/AuthController';
+import createAuthMiddleware from './infra/http/middleware/authRequired';
+import AuthService from './application/services/AuthService';
+import PostService from './application/services/PostService';
+import LikeService from './application/services/LikeService';
 
 const postRepository = new PrismaPostRepository()
-const postService = new PostService(postRepository)
-const postController = new PostController(postService)
+const postQuery = new PrismaPostQuery()
+const likeRepository = new PrismaLikeRepository()
+const postService = new PostService(postRepository, postQuery)
+const likeService = new LikeService(postRepository, likeRepository)
+const postController = new PostController(postService, likeService)
 
 const userRepository = new PrismaUserRepository()
 const hashProvider = new BcryptHashProvider()

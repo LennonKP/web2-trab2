@@ -14,8 +14,8 @@ export default class AuthController {
         res.render('auth_register', { title: 'Registro' });
     }
 
-    public handleSignout(req: Request, res: Response) {
-        res.cookie('token', "", { httpOnly: true }).redirect('/');
+    public handleSignout(_req: Request, res: Response) {
+        res.clearCookie('token').redirect('/auth/login');
     }
 
     public async handleLogin(req: Request, res: Response) {

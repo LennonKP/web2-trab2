@@ -2,43 +2,55 @@
 <%- include('components/header') %>
 
 <main class="mt-5 max-w-2xl mx-auto px-4">
-    <div class="flex justify-center gap-4 mb-8">
-        <button data-sort="date" class="sort-btn active-sort">
-            Newest
-        </button>
-        <button data-sort="likes" class="sort-btn">
-            Most Liked
-        </button>
+  <div class="flex justify-center gap-4 mb-8 items-center">
+    <div class="flex gap-4">
+      <button data-sort="createdAt" class="sort-btn px-4 py-2 rounded-full font-semibold text-gray-700 bg-gray-200 active-sort">
+        Newest
+      </button>
+      <button data-sort="likeCount" class="sort-btn px-4 py-2 rounded-full font-semibold text-gray-700 bg-gray-200">
+        Most Liked
+      </button>
     </div>
+    <div>
+      <button id="sort-direction" title="Toggle sort direction" class="px-3 py-1 rounded-full font-medium text-gray-700 bg-gray-200">
+        Desc
+      </button>
+    </div>
+  </div>
 
-    <% if (locals.posts && posts.length > 0) { %>
-        <div id="post-grid" class="flex flex-col gap-8">
-            <% posts.forEach(post => { %>
-                <%- include('components/post_card', { post }) %>
-            <% }) %>
-        </div> 
-        <div id="loading-trigger" class="h-20 w-full text-center py-8">
-            Loading...
-        </div>
-    <% } else { %>
-        <p>No posts yet. Be the first to <a href="/publish">publish</a> one!</p>
-    <% } %>
+  <% if (locals.posts && posts.length> 0) { %>
+  <div id="post-grid" class="flex flex-col gap-8">
+    <% posts.forEach(post=> { %>
+    <%- include('components/post_card', { post }) %>
+    <% }) %>
+  </div>
+  <div id="loading-trigger" class="h-20 w-full text-center py-8">
+    Loading...
+  </div>
+  <% } else { %>
+  <p>No posts yet. Be the first to <a href="/publish">publish</a> one!</p>
+  <% } %>
 
 </main>
 
 <script>
-    const postGrid = document.getElementById('post-grid');
-    const loadingTrigger = document.getElementById('loading-trigger');
-    let currentPage = 1;
-    let isLoading = false;
-    let sortBy = 'date'
+  const postGrid = document.getElementById('post-grid');
+  const loadingTrigger = document.getElementById('loading-trigger');
+  let currentPage = 1;
+  let isLoading = false;
+  let sortBy = 'createdAt'
+  let sortDirection = 'desc'
 
-    function createPostElement(post) {
-        const isLikedClass = post.isLiked ? 'liked' : '';
-        const postCard = document.createElement('div');
-        postCard.className = 'border rounded-lg shadow-sm overflow-hidden relative';
-        
-        postCard.innerHTML = `
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !isLoading) loadMorePosts();
+  });
+
+  function createPostElement(post) {
+    const isLikedClass = post.isLiked ? 'liked' : '';
+    const postCard = document.createElement('div');
+    postCard.className = 'border rounded-lg shadow-sm overflow-hidden relative';
+
+    postCard.innerHTML = `
             <div class="p-4 rendered">
                 <p class="font-bold">${post.authorName}</p>
                 <p class="text-sm">${post.description}</p>
@@ -54,97 +66,116 @@
                 </button>
             </div>
         `;
-        return postCard;
+    return postCard;
+  }
+
+  async function loadMorePosts() {
+    if (isLoading) return;
+    isLoading = true;
+
+    try {
+      const res = await fetch(`/api/posts?page=${currentPage}&sortBy=${sortBy}&sortDirection=${sortDirection}`);
+      const newPosts = await res.json();
+
+      if (newPosts.length === 0) {
+        loadingTrigger.innerText = 'No more posts';
+        observer.disconnect();
+        return;
+      }
+
+      newPosts.forEach(post => postGrid.appendChild(createPostElement(post)));
+
+      currentPage++
+    } catch (err) {
+      console.error('Error loading more posts', err);
+      observer.disconnect();
+      loadingTrigger.innerText = 'Error loading posts';
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  function handleSortChange(newSortBy) {
+    if (newSortBy === sortBy) {
+      sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+      document.getElementById('sort-direction').innerText = sortDirection === 'desc' ? 'Desc' : 'Asc';
+    } else {
+      sortBy = newSortBy;
+      sortDirection = 'desc';
+      document.getElementById('sort-direction').innerText = 'Desc';
     }
 
-    async function loadMorePosts() {
-        if (isLoading) return;
-        isLoading = true;
-        
-        try {
-            const res = await fetch(`/api/posts?page=${currentPage}&sortBy=${sortBy}`);
-            const newPosts = await res.json();
-
-            if (newPosts.length === 0) {
-                loadingTrigger.innerText = 'No more posts';
-                observer.disconnect();
-                return;
-            }
-
-            newPosts.forEach(post => postGrid.appendChild(
-                createPostElement(post)
-            ));
-
-            currentPage++
-        } catch (err) {
-            console.error('Error loading more posts', err);
-            observer.disconnect();
-            loadingTrigger.innerText = 'Error loading posts';
-        } finally {
-            isLoading = false;
-        }
-    }
-
-    const observer = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting) loadMorePosts();
-    }, { rootMargin: '200px' }); 
-
+    currentPage = 1;
+    postGrid.innerHTML = '';
+    loadingTrigger.innerText = 'Loading...';
     observer.observe(loadingTrigger);
 
-    postGrid.addEventListener('click', async (e) => {
-        const likeButton = e.target.closest('.like-btn');
-        if (!likeButton) return;
-
-        const postId = likeButton.dataset.postId;
-        const likeCountSpan = likeButton.querySelector('.like-count');
-        let currentCount = parseInt(likeCountSpan.innerText);
-
-        likeButton.classList.toggle('liked');
-        likeCountSpan.innerText = likeButton.classList.contains('liked') 
-            ? currentCount + 1
-            : currentCount - 1;
-
-        try {
-            const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
-            if (!res.ok) throw new Error('Server error');
-        } catch (err) {
-            console.error('Failed to toggle like', err);
-            likeButton.classList.toggle('liked'); 
-            likeCountSpan.innerText = currentCount;
-        }
-    });
-
-    function handleSortChange(newSortBy) {
-        if (newSortBy === sortBy) return;
-
-        sortBy = newSortBy;
-        currentPage = 1;
-        postGrid.innerHTML = '';
-        
-        loadingTrigger.innerText = 'Loading...';
-        observer.observe(loadingTrigger);
-        
-        document.querySelectorAll('.sort-btn').forEach(btn => {
-            btn.classList.toggle('active-sort', btn.dataset.sort === newSortBy);
-        });
-
-        loadMorePosts();
-    }
-
     document.querySelectorAll('.sort-btn').forEach(btn => {
-        btn.addEventListener('click', () => handleSortChange(btn.dataset.sort));
+      btn.classList.toggle('active-sort', btn.dataset.sort === sortBy);
+      btn.classList.toggle('bg-blue-500', btn.dataset.sort === sortBy);
+      btn.classList.toggle('text-white', btn.dataset.sort === sortBy);
     });
+  }
+
+  postGrid.addEventListener('click', async (e) => {
+    const likeButton = e.target.closest('.like-btn');
+    if (!likeButton) return;
+
+    const postId = likeButton.dataset.postId;
+    const likeCountSpan = likeButton.querySelector('.like-count');
+    let currentCount = parseInt(likeCountSpan.innerText);
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/like`, {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Server error');
+      likeButton.classList.toggle('liked');
+      likeCountSpan.innerText = likeButton.classList.contains('liked') ?
+        currentCount + 1 :
+        currentCount - 1;
+    } catch (err) {
+      console.error('Failed to toggle like', err);
+      likeButton.classList.toggle('liked');
+      likeCountSpan.innerText = currentCount;
+    }
+  });
+
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleSortChange(btn.dataset.sort));
+  });
+
+  document.getElementById('sort-direction').addEventListener('click', () => {
+    sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+    document.getElementById('sort-direction').innerText = sortDirection === 'desc' ? 'Desc' : 'Asc';
+
+    currentPage = 1;
+    postGrid.innerHTML = '';
+
+    observer.disconnect()
+    observer.observe(loadingTrigger);
+  });
+
+  observer.observe(loadingTrigger);
 </script>
 <style>
   .like-btn.liked svg {
-    fill: #ef4444;  
-    stroke: #233444; 
+    fill: #ef4444;
+    stroke: #233444;
   }
+
   .sort-btn {
-    @apply px-4 py-2 rounded-full font-semibold text-gray-700 bg-gray-200;
+    padding: .5rem 1rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    color: #374151;
+    background: #e5e7eb;
+    cursor: pointer;
   }
+
   .sort-btn.active-sort {
-    @apply bg-blue-500 text-white;
+    background: #3b82f6;
+    color: #ffffff;
   }
 </style>
 

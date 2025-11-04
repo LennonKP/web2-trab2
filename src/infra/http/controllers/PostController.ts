@@ -1,17 +1,17 @@
 import { Response } from 'express';
 import PostService from '../../../application/services/PostService';
+import LikeService from '../../../application/services/LikeService';
 import formidable from 'formidable';
 import path from 'path';
 import { rm } from 'fs/promises';
 import { AuthenticatedRequest } from '../types/AuthenticatedRequest';
 
 export default class PostController {
-    constructor(private postService: PostService) {}
+    constructor(private postService: PostService, private likeService: LikeService) { }
 
     public async renderFeed(req: AuthenticatedRequest, res: Response) {
-        const posts = await this.postService.getFeedPosts(req.user!.userId);
-        
-        res.render('home', { posts, user: req.user });
+        const posts = await this.postService.getFeedPosts(req.user!.userId, 1, 'createdAt', 'desc');
+        res.render('home', { posts });
     }
 
     public renderPublishPage(req: AuthenticatedRequest, res: Response) {
@@ -56,8 +56,9 @@ export default class PostController {
         try {
             const page = parseInt(req.query.page as string) || 1;
             const userId = req.user!.userId;
-            const sortBy = req.query.sortBy  as string || 'date'
-            const posts = await this.postService.getFeedPosts(userId, page, sortBy);
+            const sortBy = req.query.sortBy as string === 'likeCount' ? 'likeCount' : 'createdAt'
+            const sortDirection = req.query.sortDirection as string === 'asc' ? 'asc' : 'desc';
+            const posts = await this.postService.getFeedPosts(userId, page, sortBy, sortDirection);
             res.json(posts);
         } catch (error) {
             res.status(500).json({ error: 'Could not fetch posts' });
@@ -68,10 +69,10 @@ export default class PostController {
         try {
             const postId = parseInt(req.params.id);
             const userId = req.user!.userId;
-            await this.postService.toggleLike(userId, postId);
-            res.status(200).send();
-        } catch (error) {
-            res.status(500).send();
+            const result = await this.likeService.toggleLike(userId, postId);
+            res.status(200).json(result);
+        } catch (error: any) {
+            return res.status(500).json({ error: 'Could not toggle like' });
         }
     }
 }

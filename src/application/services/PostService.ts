@@ -1,8 +1,12 @@
 import { Post } from "../../domain/entities/Post";
 import { PostRepository } from "../../domain/repositories/PostRepository";
+import { PostQuery, PostSortBy, SortDirection } from "../ports/PostQuery";
 
 export default class PostService {
-    constructor(private postRepository: PostRepository) { }
+    constructor(
+        private postRepository: PostRepository,
+        private postQuery: PostQuery
+    ) { }
 
     async createPost({ userId, description, imagePath }: { userId: number, description: string, imagePath: string }) {
         const post = new Post({
@@ -14,18 +18,9 @@ export default class PostService {
         await this.postRepository.save(post);
     }
 
-    async getFeedPosts(userId: number, page: number = 1, sortBy: string = 'date') {
-        const postsPerPage = 2;
-        return this.postRepository.findPaginated(userId, page, postsPerPage, sortBy);
-    }
-
-    async toggleLike(userId: number, postId: number) {
-        const hasLiked = await this.postRepository.findLike(userId, postId);
-        if (hasLiked) {
-            await this.postRepository.deleteLike(userId, postId);
-            return
-        }
-
-        await this.postRepository.createLike(userId, postId);
+    async getFeedPosts(userId: number, page: number = 1, sortBy: PostSortBy = "createdAt", sortDirection: SortDirection = 'desc') {
+        setTimeout(() => {}, 1000);
+        const postsPerPage = 3;
+        return this.postQuery.findPaginated(userId, page, postsPerPage, sortBy, sortDirection);
     }
 }
